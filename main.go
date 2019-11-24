@@ -63,7 +63,7 @@ func main() {
 	router.GET("/json", js)
 
 	http.Handle("/favicon.ico", http.NotFoundHandler())
-	log.Fatal(http.ListenAndServe(":8080", router))
+	log.Fatal(http.ListenAndServe(":80", router))
 }
 
 //////////////////// APIs
@@ -108,9 +108,6 @@ func createUser(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 
 func getUser(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {	
 	u := getUserFromSession(req)
-
-	fmt.Println(u.UserID.String())
-	fmt.Println(u.UserID.Hex())
 
 	// user id and params match?
 	if u.UserID.String() != ps.ByName("id") {
@@ -195,6 +192,10 @@ func signup(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 
 func bar(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	u := getUserFromSession(req)
+	if u.UserName == "" {
+		http.Redirect(w, req, "/", http.StatusSeeOther)
+		return
+	}
 	err := tpl.ExecuteTemplate(w, "bar.gohtml", u)
 	if err != nil {
 		fmt.Println("Error serving page:", err)
@@ -237,8 +238,16 @@ func logout(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 }
 
 func connectToDatabase() {
+	user, ok := os.LookupEnv("DB_USER")
+	if !ok {
+		log.Fatal("Missing DB_USER environment variable")
+	}
+	password, ok := os.LookupEnv("DB_PASSWORD")
+	if !ok {
+		log.Fatal("Missing DB_PASSWORD environment variable")
+	}
 	ctx := context.Background()
-    clientOptions := options.Client().ApplyURI("mongodb://admin:admin@cluster0-shard-00-00-a8tc8.mongodb.net:27017,cluster0-shard-00-01-a8tc8.mongodb.net:27017,cluster0-shard-00-02-a8tc8.mongodb.net:27017/test?ssl=true&replicaSet=Cluster0-shard-0&authSource=admin&retryWrites=true&w=majority")
+    clientOptions := options.Client().ApplyURI("mongodb://" + user + ":" + password + "@" + "cluster0-shard-00-00-a8tc8.mongodb.net:27017,cluster0-shard-00-01-a8tc8.mongodb.net:27017,cluster0-shard-00-02-a8tc8.mongodb.net:27017/test?ssl=true&replicaSet=Cluster0-shard-0&authSource=admin&retryWrites=true&w=majority")
     client, err := mongo.Connect(ctx, clientOptions)
     if err != nil {
         log.Fatal(err)
